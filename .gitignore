@@ -1,0 +1,15 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv*/
+.DS_Store
+*.bak*
+*.log
+*.token
+adb.json
+devices.json
+window.json
+Macotron.app/
+tabinput
+clipkeeper
