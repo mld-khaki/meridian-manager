@@ -641,7 +641,7 @@ def ssh_tab(cmd, host=None, timeout=15):
 
 
 def tabctl_page():
-    """The tablet's control page for the Tablet tab: {"url": ...} or {"error": ...}. phone-proxy.sh
+    """The companion's control page for the Server tab: {"url": ...} or {"error": ...}. phone-proxy.sh
     opens (or rebuilds) its SSH tunnel; the URL, which holds the page's token, comes from the
     tablet over ssh_tab and goes only into this reply, never into a log or a job's output. It is on
     localhost, like Macotron, so tabctl's SameSite cookie is sent inside the frame."""
@@ -2420,17 +2420,17 @@ a{color:var(--acc)}@media(max-width:800px){main{grid-template-columns:1fr}}
 .gauge .lbl{font-size:12px;color:var(--dim);line-height:1.25}
 .gauge .sub{font-size:11px;color:var(--dim);margin-top:2px}
 .gauge .legend{font-size:11px;margin-top:3px;line-height:1.5}
-#ck{max-width:1150px;margin:0 auto;padding:18px}
+#ck,#tp{max-width:1150px;margin:0 auto;padding:18px}
 </style></head><body>
 <header><div><h1>◆ Macotron</h1><div class="sub">The Mac's control panel · tablet hotspot · Edge · remote desktops · MiladSync · toolbox</div></div><div class="ts" id="ts"></div>
 </header>
-<div class="tabs"><button id="tab-c" class="on" onclick="tab('c')">Control</button><button id="tab-t" onclick="tab('t')">Terminals</button><button id="tab-k" onclick="tab('k')">Cockpit</button><button id="tab-p" onclick="tab('p')">Tablet</button><button id="tab-b" onclick="tab('b')">Bedrock</button><button id="tab-r" onclick="tab('r')" title="Reader: text to speech with a synced highlight (Milad.Mind.Mapper)">Reader</button><button id="tab-y" onclick="tab('y')">Clipboard</button><button id="tab-o" onclick="tab('o')" title="Offload: move old meetings media and archives to OneDrive and aponno, verified, then free the laptop">Offload</button><button id="tab-s" onclick="tab('s')">Settings</button></div>
+<div class="tabs"><button id="tab-c" class="on" onclick="tab('c')">Control</button><button id="tab-t" onclick="tab('t')">Terminals</button><button id="tab-k" onclick="tab('k')">Cockpit</button><button id="tab-p" onclick="tab('p')">Server</button><button id="tab-b" onclick="tab('b')">Bedrock</button><button id="tab-r" onclick="tab('r')" title="Reader: text to speech with a synced highlight (Milad.Mind.Mapper)">Reader</button><button id="tab-y" onclick="tab('y')">Clipboard</button><button id="tab-o" onclick="tab('o')" title="Offload: move old meetings media and archives to OneDrive and aponno, verified, then free the laptop">Offload</button><button id="tab-s" onclick="tab('s')">Settings</button></div>
 <main id="mc">
 <section class="card wide"><div class="ch"><h2 style="cursor:pointer" onclick="toggleMon()" title="Click to show every check, including the ones that are fine">Connections</h2><span class="dim" id="mwhen"></span><span class="dim" id="mlast"></span><span class="btns" style="margin-left:auto" id="mbtns"></span></div><div id="mon"><div class="dim">Starting the checks…</div></div></section>
 <section class="card"><h2>Network</h2><div id="net"></div>
  <div class="add"><input id="pa" placeholder="phone address (or auto / scan)" size="26"><button onclick="act('phone',{addr:document.getElementById('pa').value})">Set</button><button onclick="act('phone',{addr:'scan'})">Scan network</button><button onclick="act('phone',{addr:'auto'})">Use gateway</button></div></section>
 <section class="card"><h2>Services</h2><div id="svc"></div></section>
-<section class="card wide"><div class="ch"><h2>Wireless ADB · phone management (no root)</h2><span class="dim" id="adb-label"></span><button style="margin-left:auto" onclick="adbOp('refresh')">Check now</button></div>
+<div id="adb-home" style="grid-column:1/-1"><section class="card wide" id="adb-card"><div class="ch"><h2>Wireless ADB · phone management (no root)</h2><span class="dim" id="adb-label"></span><button style="margin-left:auto" onclick="adbOp('refresh')">Check now</button></div>
  <div class="dim">On the phone: Developer options → Wireless debugging. On its hotspot the gateway IP is filled in automatically; add the port shown on the phone. Pairing and connection use different ports. Device identity is saved per companion profile; SSH and the phone proxy are unchanged.</div>
  <div class="add"><input id="adb-pair" placeholder="pairing IPv4:port" aria-label="ADB pairing address" size="22"><input id="adb-code" type="password" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="6-digit pairing code" aria-label="ADB pairing code" size="18"><button onclick="adbPair()">Pair</button></div>
  <div class="add"><input id="adb-address" placeholder="connection IPv4:port" aria-label="ADB connection address" size="24"><button onclick="adbConnect()">Connect / enable monitoring</button><button onclick="adbOp('off')">Stop ADB monitoring</button><button onclick="adbOp('disconnect')">Disconnect ADB</button></div>
@@ -2443,7 +2443,7 @@ a{color:var(--acc)}@media(max-width:800px){main{grid-template-columns:1fr}}
  <div class="add"><span class="dim">Manual brightness (0–255; turns auto brightness off)</span><input id="adb-brightness" type="number" min="0" max="255" aria-label="Phone brightness" size="5"><button id="adb-brightness-set" onclick="adbBrightness()">Set brightness</button></div>
  <div id="adb-result" class="mono" role="status" style="margin-top:8px;white-space:pre-wrap"></div>
  <div class="dim" style="margin-top:8px">scrcpy opens its own keyboard/mouse screen window. Protected screens may be black. Root-only NAT, LUKS and raw disk controls remain unavailable without root.</div>
-</section>
+</section></div>
 <section class="card wide"><div class="ch"><h2>Remote desktops &amp; drive shares</h2><span class="btns" style="margin-left:auto"><button class="pri" onclick="act('allon')" title="Open every tunnel that is down, mount the drive share and bring the NAT addresses up. Whatever already works is left alone, so a live remote desktop is not dropped">All on</button><button class="danger" onclick="if(confirm('Stop continuous monitoring, close every tunnel and unmount the drive share? Open remote desktops drop.'))act('alloff')" title="Stop continuous monitoring, unmount shares, then close tunnels. The NAT addresses stay up (the watchdogs keep them)">All off</button><button id="targetmon" onclick="targetMon()" aria-pressed="false" disabled title="Check availability every 30 seconds and enable missing connections. Turning this off leaves connections open">Continuous monitoring: off</button></span></div><div class="row"><span class="grow dim" id="targetmsg"></span><button id="targetlog" hidden onclick="poll(lastMon.targets.job,0)">Recovery log</button></div><div id="tg"></div>
  <div class="add"><input id="an" placeholder="name (e.g. helios)" size="14"><input id="ai" placeholder="Tailscale IP 100.x.y.z" size="18">
  <input id="ar" placeholder="RDP port 3389 (- = NAT only)" size="22"><input id="al" placeholder="local port (auto)" size="14"><input id="ax" placeholder="NAT .N (optional)" size="14" title="Virtual address N (1-254) in the tablet's hotspot subnet: every port of it is NATed to this target, and the tablet answers the fixed name <name>.tab.local for it"><button class="pri" onclick="addT()">Add target</button></div></section>
@@ -2454,8 +2454,8 @@ a{color:var(--acc)}@media(max-width:800px){main{grid-template-columns:1fr}}
   <button onclick="act('exitip')">Exit IP check</button></div></details>
  <details><summary>Edge</summary><div class="pop">
   <button onclick="act('edge',{mode:'isolated'})">Separate profile</button><button onclick="act('edge',{mode:'default'})">Normal profile</button><button onclick="act('edge',{mode:'plain'})">No proxy</button></div></details>
- <details><summary>Tablet</summary><div class="pop">
-  <button onclick="tab('p')" title="The tablet's control page (SSD unlock, Samba, meridian, power), in the Tablet tab">Control page</button>
+ <details><summary>Server</summary><div class="pop">
+  <button onclick="tab('p')" title="ADB phone management and the companion's SSH control page, in the Server tab">Control page</button>
   <button onclick="termRun('tablet')" title="A shell on the tablet (ssh tab), in the Terminals tab; exit it to come back here">Terminal</button>
   <button onclick="act('nat',{op:'on'})" title="Rebuild the virtual addresses (nat=N targets) on the tablet">NAT refresh</button><button onclick="act('nat',{op:'off'})" title="Remove the virtual addresses from the tablet">NAT off</button></div></details>
  <details><summary>Drive</summary><div class="pop">
@@ -2473,8 +2473,13 @@ a{color:var(--acc)}@media(max-width:800px){main{grid-template-columns:1fr}}
 <section class="card wide"><h2>Cockpit</h2><div id="gauges" class="gaugegrid"></div></section>
 </div>
 <div id="tp" hidden>
-<div class="btns" style="margin-bottom:8px;align-items:center"><button onclick="tabletLoad()">Reload</button><button onclick="termRun('tablet')" title="A shell on the companion device (ssh tab), in the Terminals tab; exit it to come back here">Terminal</button><span class="dim" style="margin-left:12px">Portal device</span><select id="devsel" title="The device Macotron and phone-proxy.sh talk to. Only one is active at a time."></select><button onclick="deviceUse()" title="Make the selected device the companion: rewrites the ssh 'tab' entry, then restarts Macotron">Switch</button><span id="tpmsg" class="dim"></span><span id="devnote" class="dim" style="margin-left:8px"></span></div>
-<iframe id="tpf" title="The tablet's control page" style="width:100%;border:0;height:calc(100vh - 150px);min-height:520px"></iframe>
+<div class="btns" style="margin-bottom:8px;align-items:center"><span class="dim">Server device</span><select id="devsel" title="The device Macotron and phone-proxy.sh talk to. Only one is active at a time."></select><button onclick="deviceUse()" title="Make the selected device the companion: rewrites the ssh 'tab' entry, then restarts Macotron">Switch</button></div>
+<div id="devnote" class="dim" style="margin-bottom:12px"></div>
+<div id="server-adb" style="margin-bottom:16px"></div>
+<section class="card"><div class="ch"><h2>Termux server (SSH)</h2><button style="margin-left:auto" onclick="tabletLoad()">Reload server page</button><button onclick="termRun('tablet')" title="A shell on the companion device (ssh tab), in the Terminals tab; exit it to come back here">Terminal</button></div>
+<div id="tpmsg" class="dim" role="status" style="margin-bottom:8px"></div>
+<iframe id="tpf" title="The server's SSH control page" hidden style="width:100%;border:0;height:calc(100vh - 150px);min-height:520px"></iframe>
+</section>
 </div>
 <div id="tt" hidden>
  <div class="tbar" id="tbar"></div>
@@ -2650,29 +2655,30 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')amClose()});
 async function watchLog(){const r=await api('/api/watchlog');con.textContent=r.lines.join('\n');show('Watchdog log')}
 
 function tab(w){document.getElementById('mc').hidden=w!='c';document.getElementById('tt').hidden=w!='t';document.getElementById('ck').hidden=w!='k';document.getElementById('tp').hidden=w!='p';document.getElementById('bd').hidden=w!='b';document.getElementById('rd').hidden=w!='r';document.getElementById('ss').hidden=w!='s';document.getElementById('cb').hidden=w!='y';document.getElementById('of').hidden=w!='o';
+ const adbCard=document.getElementById('adb-card'),adbHome=document.getElementById(w=='p'?'server-adb':'adb-home');if(adbCard.parentElement!==adbHome)adbHome.appendChild(adbCard);
  document.getElementById('tab-c').className=w=='c'?'on':'';document.getElementById('tab-t').className=w=='t'?'on':'';document.getElementById('tab-k').className=w=='k'?'on':'';document.getElementById('tab-p').className=w=='p'?'on':'';document.getElementById('tab-b').className=w=='b'?'on':'';document.getElementById('tab-r').className=w=='r'?'on':'';document.getElementById('tab-s').className=w=='s'?'on':'';document.getElementById('tab-y').className=w=='y'?'on':'';document.getElementById('tab-o').className=w=='o'?'on':'';
  if(w=='r'){const f=document.getElementById('rdf');if(!f.src)f.src='/reader?t='+encodeURIComponent(T)+'&embed=1';else if(f.contentWindow)f.contentWindow.postMessage({type:'reader-focus'},'*')}
  if(w=='o'){const f=document.getElementById('off');if(!f.src)f.src='/offload?t='+encodeURIComponent(T)+'&embed=1&theme='+(document.documentElement.getAttribute('data-theme')||'dark')}
  if(w=='s'){renderAlarmSet(lastMon);tabinLoad()}if(w=='y')clipLoad();if(w=='t')termInit();if(w=='k'&&lastMon)renderGauges(lastMon);if(w=='p'&&!tpLoaded){tpLoaded=1;tabletLoad()}
  if(w=='b'&&!bdLoaded){bdLoaded=1;const th=document.documentElement.getAttribute('data-theme')||'dark';document.getElementById('bdf').src='/bedrock?t='+encodeURIComponent(T)+'&embed=1&theme='+th;document.getElementById('bdopen').href='/bedrock?t='+encodeURIComponent(T);}}
-// Tablet tab: tabctl's own page from the tablet, framed; Macotron fetches its URL (token inside)
+// Server tab shares the existing ADB form without duplicating IDs or losing input state.
 let tpLoaded=0;
-async function deviceLoad(){let r;try{r=await api('/api/device')}catch(e){return}
+async function deviceLoad(){let r;try{r=await api('/api/device');if(r.error)throw new Error(r.error)}catch(e){document.getElementById('devnote').textContent='Could not load companion settings: '+e;return}
  const s=document.getElementById('devsel');if(!s)return;
  s.innerHTML=Object.entries(r.devices).map(([n,v])=>'<option value="'+n+'"'+(n===r.active?' selected':'')+'>'+(v.label||n)+'</option>').join('');
  s.dataset.active=r.active;const a=r.devices[r.active]||{};
- document.getElementById('devnote').textContent=a.root===false?'Not rooted: no keyboard/mouse sharing, screen window, power profile, NAT names or Tablotron watch on this device.':''}
+ document.getElementById('devnote').textContent=a.root===false?'Not rooted: use ADB for battery, Tailscale, screen settings and scrcpy. Samba/disk administration, NAT, power profiles and the input-sharing daemon still require root.':''}
 async function deviceUse(){const s=document.getElementById('devsel'),n=s.value;
  if(n===s.dataset.active)return alert('That device is already the companion.');
  if(!confirm('Make "'+s.options[s.selectedIndex].text+'" the portal device? The ssh entry changes and Macotron restarts (open terminals end).'))return;
  let r;try{r=await api('/api/device',{method:'POST',body:JSON.stringify({op:'use',name:n})})}catch(e){return alert('Macotron did not answer: '+e)}
  if(r.error)return alert(r.error);
  restartApp(true)}
-async function tabletLoad(){deviceLoad();const m=document.getElementById('tpmsg');m.textContent="Opening the tablet's control page through its SSH tunnel...";
+async function tabletLoad(){deviceLoad();adbLoad();const m=document.getElementById('tpmsg'),f=document.getElementById('tpf');f.hidden=true;f.removeAttribute('src');m.textContent="Opening the server's control page through its SSH tunnel; ADB controls above work independently...";
  let r;try{r=await api('/api/tabctl')}catch(e){r={error:'Macotron not answering'}}
- if(r.error){m.textContent=r.error;return}
- m.textContent="The tablet's own page, through the SSH tunnel. If it stays blank, its tabctl predates framing: ./phone-proxy.sh tabctl install";
- document.getElementById('tpf').src=r.url}
+ if(r.error||!r.url){m.textContent=(r.error||'Server did not provide a control-page URL.')+' ADB phone management above remains available when connected.';return}
+ m.textContent="The server's own page, through SSH. Its root-only controls are separate from ADB. If it stays blank, update its framing support: ./phone-proxy.sh tabctl install";
+ f.src=r.url;f.hidden=false}
 
 // Cockpit: analog gauges. rot(v): -90deg at min (needle left) to +90deg at max (needle right), 0deg (up) at the midpoint.
 const num=v=>(v===undefined||v===null||v==='')?null:+v;

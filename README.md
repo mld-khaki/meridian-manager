@@ -65,6 +65,15 @@ Macotron never kills the shared adb server or unrelated scrcpy processes.
 ADB is Android debugging-shell access, **not root**. Custom NAT/firewall rules, the existing
 `/dev/uinput` backend, and raw/LUKS disk controls remain root-only.
 
+### Server tab
+
+The **Server** tab combines the Wireless ADB status/controls with the existing Termux server
+page over SSH. Battery, Tailscale, screen settings and scrcpy remain usable through ADB even
+when the SSH page is loading or unavailable. The same ADB form is available in **Control**;
+switching tabs preserves entered addresses and pairing fields without duplicating controls.
+The SSH page retains its own root requirements; ADB does not grant Samba/disk administration,
+custom NAT or root-only power profiles. Select the companion profile in Server as before.
+
 Official Tailscale intent reference:
 [Android manifest](https://github.com/tailscale/tailscale-android/blob/main/android/src/main/AndroidManifest.xml).
 Screen-control tool: [scrcpy](https://github.com/Genymobile/scrcpy).
