@@ -252,6 +252,7 @@ stop_tunnel() {
   kill_tunnel "$1"; sleep 1
   if tunnel_up "$1"; then
     echo "${R}${T_NAME[$1]}: localhost:${T_LP[$1]} still listening (not started by this script?).${N}"
+    return 1
   else
     echo "${G}${T_NAME[$1]}: tunnel closed.${N}"
   fi
@@ -599,7 +600,12 @@ unmount_usb() {
   mp=$(mounted_path "$i")
   [ -z "$mp" ] && { echo "Not mounted."; return 0; }
   diskutil unmount "$mp" >/dev/null 2>&1 || umount "$mp" 2>/dev/null
-  [ -z "$(mounted_path "$i")" ] && echo "${G}Unmounted $mp (safe to stop the tunnel).${N}" || echo "${R}Could not unmount $mp (in use?).${N}"
+  if [ -z "$(mounted_path "$i")" ]; then
+    echo "${G}Unmounted $mp (safe to stop the tunnel).${N}"
+  else
+    echo "${R}Could not unmount $mp (in use?).${N}"
+    return 1
+  fi
 }
 
 # ---- tablet control page (tabctl) and SSD unlock ------------------------------

@@ -84,6 +84,9 @@ def validate(name, dev):
     bad = []
     if not NAME_RE.match(name):
         bad.append("name must be lowercase letters, digits, - or _")
+    for field in BOOLS:
+        if field in dev and not isinstance(dev[field], bool):
+            bad.append("%s must be a boolean" % field)
     if not re.match(r"^[A-Za-z0-9_.-]{1,40}$", str(dev.get("user", ""))):
         bad.append("user (the Termux uid; run `whoami` in Termux)")
     if dev.get("hotspot", True) and (not str(dev.get("ssid", "")).strip() or any(c in str(dev["ssid"]) for c in "\n\r\"'\\")):
@@ -175,7 +178,13 @@ def _fields(pairs):
     for k, v in pairs.items():
         if k not in FIELDS:
             raise SystemExit("unknown field %r (have: %s)" % (k, ", ".join(FIELDS)))
-        out[k] = parse_screen(v) if k == "screen" else (str(v).lower() in ("1", "true", "yes", "on") if k in BOOLS else v)
+        if k in BOOLS:
+            value = str(v).lower()
+            if value not in ("1", "true", "yes", "on", "0", "false", "no", "off"):
+                raise SystemExit("%s must be yes or no (also true/false, on/off, 1/0)." % k)
+            out[k] = value in ("1", "true", "yes", "on")
+        else:
+            out[k] = parse_screen(v) if k == "screen" else v
     return out
 
 

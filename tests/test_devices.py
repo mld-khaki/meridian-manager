@@ -100,3 +100,15 @@ def test_hotspot_device_still_needs_an_ssid(home):
 def test_bad_lan_address_is_rejected(home):
     dev = dict(devices.DEFAULT["devices"]["raven"], lan="10.0.0.999")
     assert devices.validate("raven", dev)
+
+
+def test_invalid_boolean_option_is_rejected_without_saving(home):
+    before = devices.load()
+    with pytest.raises(SystemExit, match="yes.*no"):
+        devices.main(["set", "raven", "root=typo"])
+    assert devices.load() == before
+
+
+def test_boolean_fields_in_profiles_must_be_real_booleans(home):
+    dev = dict(devices.DEFAULT["devices"]["raven"], root="false")
+    assert any("root" in message for message in devices.validate("raven", dev))

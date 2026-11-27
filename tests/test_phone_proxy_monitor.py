@@ -26,6 +26,7 @@ def web(tmp_path, monkeypatch):
     monkeypatch.setattr(module.time, "time", lambda: clock[0])
     module.test_clock = clock
     module.test_runs = []
+    module.original_run_job = module.run_job
 
     def run_job(title, argv, stdin_text=None):
         jid = str(len(module.test_runs) + 1)
@@ -187,3 +188,67 @@ def test_alloff_disables_monitoring_before_build_and_waits_for_recovery(web, mon
     handler.do_POST()
     assert replies[-1][0] == 400 and "still finishing" in replies[-1][1]["error"]
     assert not mon.saved["targets_on"]
+
+
+def test_failed_job_start_does_not_leave_a_running_job(web, monkeypatch):
+    def fail(*args, **kwargs):
+        raise FileNotFoundError("missing command")
+
+    monkeypatch.setattr(web.subprocess, "Popen", fail)
+    with pytest.raises(ValueError, match="Could not start"):
+        web.original_run_job("Broken command", ["missing"])
+    assert not web.JOBS
+
+
+def test_job_history_never_discards_running_jobs(web, monkeypatch):
+    import io
+    from types import SimpleNamespace
+
+    web.JOBS["running"] = {"done": False}
+    for i in range(35):
+        web.JOBS[str(i)] = {"done": True}
+    monkeypatch.setattr(web.subprocess, "Popen", lambda *a, **kw:
+                        SimpleNamespace(stdout=io.StringIO("ok\n"), wait=lambda: 0))
+
+    class InlineThread:
+        def __init__(self, target, **kwargs):
+            self.target = target
+
+        def start(self):
+            self.target()
+
+        def join(self, timeout):
+            pass
+
+    monkeypatch.setattr(web.threading, "Thread", InlineThread)
+    jid = web.original_run_job("New command", ["echo", "ok"])
+    assert "running" in web.JOBS
+    assert web.JOBS[jid]["done"] and web.JOBS[jid]["rc"] == 0
+
+
+def test_nonobject_web_request_returns_an_error_without_dispatch(web, monkeypatch):
+    import io
+    import json
+
+    handler = object.__new__(web.H)
+    handler.path = "/api/tunnel"
+    handler.headers = {"Content-Length": "2"}
+    handler.rfile = io.BytesIO(b"[]")
+    monkeypatch.setattr(handler, "_ok", lambda: True)
+    replies = []
+    monkeypatch.setattr(handler, "_send", lambda code, body: replies.append((code, json.loads(body))))
+    handler.do_POST()
+    assert replies[-1][0] == 400 and "object" in replies[-1][1]["error"]
+    assert not web.test_runs
+
+
+@pytest.mark.parametrize("since", ["invalid", "-1"])
+def test_invalid_job_offset_returns_an_explicit_error(web, monkeypatch, since):
+    handler = object.__new__(web.H)
+    handler.path = "/api/job?id=example&since=" + since
+    web.JOBS["example"] = {"out": ["one", "two"], "done": True, "rc": 0, "title": "Example"}
+    monkeypatch.setattr(handler, "_ok", lambda: True)
+    replies = []
+    monkeypatch.setattr(handler, "_send", lambda code, body: replies.append((code, json.loads(body))))
+    handler.do_GET()
+    assert replies[-1][0] == 400 and "offset" in replies[-1][1]["error"]

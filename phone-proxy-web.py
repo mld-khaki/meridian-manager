@@ -238,15 +238,19 @@ TARGETS_LOCK = threading.RLock()   # serialize automatic dispatch with manual co
 
 
 def run_job(title, argv, stdin_text=None):
+    try:
+        p = subprocess.Popen(argv, stdin=subprocess.PIPE if stdin_text is not None else subprocess.DEVNULL,
+                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+                             start_new_session=True, bufsize=1)
+    except OSError as e:
+        mon_log("Could not start job %s: %s" % (title, e))
+        raise ValueError("Could not start %s: %s" % (title, e)) from e
     jid = secrets.token_hex(4)
     job = {"id": jid, "title": title, "out": [], "done": False, "rc": None}
     with JOBS_LOCK:
         JOBS[jid] = job
-        for old in list(JOBS)[:-30]:
+        for old in [key for key, value in JOBS.items() if value["done"]][:-30]:
             JOBS.pop(old, None)
-    p = subprocess.Popen(argv, stdin=subprocess.PIPE if stdin_text is not None else subprocess.DEVNULL,
-                         stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
-                         start_new_session=True, bufsize=1)
 
     def reader():
         for line in p.stdout:
@@ -2221,7 +2225,12 @@ class H(BaseHTTPRequestHandler):
             j = JOBS.get((parse_qs(u.query).get("id") or [""])[0])
             if not j:
                 return self._send(404, "{}")
-            since = int((parse_qs(u.query).get("since") or ["0"])[0])
+            try:
+                since = int((parse_qs(u.query).get("since") or ["0"])[0])
+                if since < 0:
+                    raise ValueError
+            except ValueError:
+                return self._send(400, json.dumps({"error": "Job offset must be a nonnegative integer."}))
             return self._send(200, json.dumps({"lines": j["out"][since:], "n": len(j["out"]),
                                                "done": j["done"], "rc": j["rc"], "title": j["title"]}))
         if u.path == "/api/device":
@@ -2282,6 +2291,8 @@ class H(BaseHTTPRequestHandler):
         # <<< offload glue <<<
         try:
             body = json.loads(self.rfile.read(int(self.headers.get("Content-Length") or 0)) or b"{}")
+            if not isinstance(body, dict):
+                raise ValueError("Request body must be a JSON object.")
             if urlparse(self.path).path == "/api/restart":
                 restart_self()
                 return self._send(200, json.dumps({"ok": True, "boot": BOOT}))

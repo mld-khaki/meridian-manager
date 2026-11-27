@@ -250,6 +250,35 @@ def test_nonobject_request_is_rejected_without_adb_commands(phone):
     assert not phone.test_calls
 
 
+def test_snapshot_does_not_wait_for_slow_phone_diagnostics(phone, monkeypatch):
+    import threading
+
+    phone.operation({"op": "connect", "device": "phone", "endpoint": "127.0.0.1:40000"})
+    entered, release, returned = threading.Event(), threading.Event(), threading.Event()
+    original = phone.run
+
+    def slow(args, **kwargs):
+        if args == ["shell", "dumpsys", "battery"]:
+            entered.set()
+            assert release.wait(5)
+        return original(args, **kwargs)
+
+    monkeypatch.setattr(phone, "run", slow)
+    worker = threading.Thread(target=phone.refresh)
+    reader = threading.Thread(target=lambda: (phone.snapshot(), returned.set()))
+    worker.start()
+    try:
+        assert entered.wait(2)
+        reader.start()
+        assert returned.wait(0.5), "Status requests are blocked by a phone diagnostic subprocess."
+        assert phone.snapshot()["endpoint"] == "127.0.0.1:40000"
+    finally:
+        release.set()
+        worker.join(2)
+        if reader.ident:
+            reader.join(2)
+
+
 def test_hotspot_gateway_prefills_both_addresses_without_overwriting_choices():
     import ast
     import shutil
