@@ -29,6 +29,9 @@ The UI binds to localhost, requires a token and opens in Macotron.app. Runtime s
    stdin, and never saved or logged by Macotron.
 3. Enter the **IP address and port** from the main Wireless debugging screen and press
    **Connect / enable monitoring**. This is a different port from pairing.
+   On the device's hotspot, empty pairing/connection fields are prefilled with its gateway IP
+   and a colon; add the respective port shown on the phone. Saved connection addresses and
+   manually edited fields are preserved. Untouched defaults follow hotspot gateway changes.
 4. Battery and Tailscale diagnostics refresh every 15 seconds. Open **scrcpy screen** for a
    separate screen-mirroring window with keyboard/mouse control.
 

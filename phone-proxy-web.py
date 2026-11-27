@@ -21,7 +21,8 @@ after that job finishes, so a mount cannot race an unmount.
 
 The optional Wireless ADB card manages a paired, explicitly selected phone without root. Install
 Android platform tools and scrcpy on the Mac, pair using the phone's pairing address/code, then
-connect using its main Wireless debugging address. Codes are never saved. Android VPN ownership
+connect using its main Wireless debugging address. Codes are never saved. On a hotspot, empty
+address fields default to the phone's gateway IP; enter each debugging port. Android VPN ownership
 is reported separately from app-process status and does not prove Tailscale peer reachability.
 Wireless debugging may need reconnecting after reboot/network changes. Root-only NAT and raw
 disk operations remain disabled on non-rooted devices; SSH/proxy behavior is unchanged.
@@ -2419,7 +2420,7 @@ a{color:var(--acc)}@media(max-width:800px){main{grid-template-columns:1fr}}
  <div class="add"><input id="pa" placeholder="phone address (or auto / scan)" size="26"><button onclick="act('phone',{addr:document.getElementById('pa').value})">Set</button><button onclick="act('phone',{addr:'scan'})">Scan network</button><button onclick="act('phone',{addr:'auto'})">Use gateway</button></div></section>
 <section class="card"><h2>Services</h2><div id="svc"></div></section>
 <section class="card wide"><div class="ch"><h2>Wireless ADB · phone management (no root)</h2><span class="dim" id="adb-label"></span><button style="margin-left:auto" onclick="adbOp('refresh')">Check now</button></div>
- <div class="dim">On the phone: Developer options → Wireless debugging. Use a trusted shared Wi-Fi. Pair once, then connect using the main debugging address (not the pairing port). Device identity is saved per companion profile; SSH and the phone proxy are unchanged.</div>
+ <div class="dim">On the phone: Developer options → Wireless debugging. On its hotspot the gateway IP is filled in automatically; add the port shown on the phone. Pairing and connection use different ports. Device identity is saved per companion profile; SSH and the phone proxy are unchanged.</div>
  <div class="add"><input id="adb-pair" placeholder="pairing IPv4:port" aria-label="ADB pairing address" size="22"><input id="adb-code" type="password" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="6-digit pairing code" aria-label="ADB pairing code" size="18"><button onclick="adbPair()">Pair</button></div>
  <div class="add"><input id="adb-address" placeholder="connection IPv4:port" aria-label="ADB connection address" size="24"><button onclick="adbConnect()">Connect / enable monitoring</button><button onclick="adbOp('off')">Stop ADB monitoring</button><button onclick="adbOp('disconnect')">Disconnect ADB</button></div>
  <div id="adb-status" class="dim" style="margin-top:10px">Loading ADB status...</div><div id="adb-info"></div>
@@ -2541,9 +2542,14 @@ const con=document.getElementById('con');let busy=0;
 const api=(p,o)=>fetch(p,{...o,headers:{'X-Token':T,'Content-Type':'application/json'}}).then(r=>r.json());
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const dot=on=>`<span class="dot ${on?'on':'off'}"></span>`;
-let lastADB=null,adbBusy=false;
+let lastADB=null,adbBusy=false,adbGateway='';
+function adbAddressDefaults(saved=''){const prefix=adbGateway?adbGateway+':':'';
+ for(const [id,value] of [['adb-address',saved||prefix],['adb-pair',prefix]]){const input=document.getElementById(id);
+  if(document.activeElement!==input&&!input.dataset.edited)input.value=value}}
+function adbHotspotDefaults(s){adbGateway=s.net&&s.mode==='hotspot'?s.phone:'';
+ adbAddressDefaults(lastADB&&lastADB.endpoint||'')}
 function renderADB(s){lastADB=s;document.getElementById('adb-label').textContent=s.label||'';
- const a=document.getElementById('adb-address');if(document.activeElement!==a&&!a.dataset.edited)a.value=s.endpoint||'';
+ adbAddressDefaults(s.endpoint);
  document.getElementById('adb-status').textContent=(s.message||'')+
   (!s.adb_installed&&!s.unavailable?' Install adb: brew install --cask android-platform-tools.':'')+
   (!s.scrcpy_installed&&!s.unavailable?' For screen control: brew install scrcpy.':'')+
@@ -2577,11 +2583,12 @@ async function adbConnect(){const endpoint=document.getElementById('adb-address'
 function adbBrightness(){const input=document.getElementById('adb-brightness'),value=Number(input.value);
  if(!input.value.trim()||!Number.isInteger(value)||value<0||value>255){document.getElementById('adb-result').textContent='Enter a brightness from 0 to 255.';return}
  return adbOp('brightness',{value})}
-document.getElementById('adb-address').addEventListener('input',e=>{e.target.dataset.edited='1'});
+for(const id of ['adb-address','adb-pair'])document.getElementById(id).addEventListener('input',e=>{e.target.dataset.edited='1'});
 adbLoad();setInterval(adbLoad,5000);
 function svc(label,on,detail,btns){return `<div class="row">${dot(on)}<div class="grow"><b>${label}</b> <span class="dim">${detail}</span></div>${btns}</div>`}
 async function refresh(){let s;try{s=await api('/api/status')}catch(e){document.getElementById('ts').textContent='disconnected';return}
  document.getElementById('ts').textContent='updated '+s.ts;
+ adbHotspotDefaults(s);
  document.getElementById('net').innerHTML=s.net?
   `<div class="row"><div class="grow">Interface <b>${esc(s.iface)}</b></div></div><div class="row"><div class="grow">Mac <b class="mono">${s.mac}</b> → Phone <b class="mono">${s.phone}</b></div></div>
    <div class="row"><div class="grow">Link <b>${s.mode=='hotspot'?'hotspot':'same network'}</b> <span class="dim">${s.mode=='hotspot'?'(phone is the gateway)':'(phone has its own address)'}</span></div></div>

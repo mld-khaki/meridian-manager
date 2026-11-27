@@ -248,3 +248,54 @@ def test_nonobject_request_is_rejected_without_adb_commands(phone):
     with pytest.raises(ValueError, match="JSON object"):
         phone.operation([])
     assert not phone.test_calls
+
+
+def test_hotspot_gateway_prefills_both_addresses_without_overwriting_choices():
+    import ast
+    import shutil
+
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("Node is needed to exercise the UI address defaults.")
+    tree = ast.parse((Path(__file__).resolve().parent.parent / "phone-proxy-web.py").read_text())
+    page = next(ast.literal_eval(n.value) for n in tree.body if isinstance(n, ast.Assign)
+                and any(isinstance(a, ast.Name) and a.id == "PAGE" for a in n.targets))
+    helpers = "let lastADB=" + page.split("let lastADB=", 1)[1].split("function renderADB", 1)[0]
+    script = """
+const assert = require('node:assert/strict');
+const inputs = {'adb-address': {value:'',dataset:{}}, 'adb-pair': {value:'',dataset:{}}};
+const document = {activeElement:null,getElementById:id=>inputs[id]};
+""" + helpers + """
+const address=inputs['adb-address'], pair=inputs['adb-pair'];
+adbHotspotDefaults({net:true,mode:'hotspot',phone:'10.1.2.1'});
+assert.equal(address.value,'10.1.2.1:');
+assert.equal(pair.value,'10.1.2.1:');
+adbAddressDefaults();
+assert.equal(address.value,'10.1.2.1:');
+adbHotspotDefaults({net:true,mode:'hotspot',phone:'10.3.4.1'});
+assert.equal(address.value,'10.3.4.1:');
+assert.equal(pair.value,'10.3.4.1:');
+lastADB={endpoint:'192.168.1.20:37000'};
+adbHotspotDefaults({net:true,mode:'hotspot',phone:'10.5.6.1'});
+assert.equal(address.value,lastADB.endpoint);
+assert.equal(pair.value,'10.5.6.1:');
+address.value='10.5.6.1:40000';address.dataset.edited='1';
+pair.value='10.5.6.1:41000';pair.dataset.edited='1';
+adbHotspotDefaults({net:true,mode:'hotspot',phone:'10.7.8.1'});
+adbAddressDefaults('192.168.1.20:37000');
+assert.equal(address.value,'10.5.6.1:40000');
+assert.equal(pair.value,'10.5.6.1:41000');
+delete address.dataset.edited;delete pair.dataset.edited;lastADB=null;
+document.activeElement=address;
+adbHotspotDefaults({net:true,mode:'hotspot',phone:'10.9.10.1'});
+assert.equal(address.value,'10.5.6.1:40000');
+assert.equal(pair.value,'10.9.10.1:');
+document.activeElement=null;
+adbHotspotDefaults({net:true,mode:'lan',phone:'192.168.1.1'});
+assert.equal(address.value,'');
+assert.equal(pair.value,'');
+adbHotspotDefaults({net:false,mode:'hotspot',phone:'10.9.10.1'});
+assert.equal(address.value,'');
+"""
+    result = subprocess.run([node], input=script, capture_output=True, text=True, timeout=10)
+    assert result.returncode == 0, result.stderr
