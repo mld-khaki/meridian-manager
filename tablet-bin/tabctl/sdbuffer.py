@@ -589,14 +589,18 @@ def copy_meta(src_st, src, dst):
 
 
 def fsync_dir(path):
+    fd = os.open(path, os.O_RDONLY)
     try:
-        fd = os.open(path, os.O_RDONLY)
-        try:
-            os.fsync(fd)
-        finally:
-            os.close(fd)
-    except OSError:
-        pass
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+
+
+def require_unchanged(src, before):
+    after = os.lstat(src)
+    fields = ("st_dev", "st_ino", "st_size", "st_mtime_ns", "st_ctime_ns")
+    if any(getattr(after, key) != getattr(before, key) for key in fields):
+        raise OSError(errno.EBUSY, "source changed during the copy; left in the buffer", src)
 
 
 def hard_link(src, dst):
@@ -640,6 +644,7 @@ def place(src, dst, st, stop):
         if got.digest() != want.digest():
             raise OSError(errno.EIO, "the copy on the SSD reads back different")
         copy_meta(st, src, tmp)
+        require_unchanged(src, st)
         hard_link(tmp, dst)
     finally:
         try:
@@ -709,6 +714,8 @@ def move_tree(src, dst, settle=SETTLE, t_now=None, busy=frozenset(), stop=lambda
                 ensure_dir(droot, root, dst, src)
                 if os.path.lexists(dp):
                     if os.path.isfile(dp) and not os.path.islink(dp) and same_content(sp, dp):
+                        fsync_dir(os.path.dirname(dp))
+                        require_unchanged(sp, st)
                         os.unlink(sp)
                         res["same"] += 1
                         continue
@@ -727,6 +734,7 @@ def move_tree(src, dst, settle=SETTLE, t_now=None, busy=frozenset(), stop=lambda
                     place(sp, dp, st, stop)
                 if os.path.basename(dp) != name:
                     res["kept_both"].append(os.path.relpath(dp, dst))
+                require_unchanged(sp, st)
                 os.unlink(sp)
                 res["moved"] += 1
                 res["bytes"] += st.st_size

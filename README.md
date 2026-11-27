@@ -40,6 +40,9 @@ Every device command explicitly selects that endpoint; Macotron never chooses th
 attached to adb. A different hardware identity requires confirmation before replacing the
 profile's pinned phone. Connection ports may change after reboot/network changes; enter the
 new address and reconnect. This backend does not alter SSH, the proxy, or system firewall rules.
+If direct debugging on the hotspot requires port mapping, enter your mapped endpoint explicitly
+(for example `127.0.0.1:40000`). Saved mapped endpoints take precedence over the gateway default.
+Macotron does not create or remove that mapping; keep its external forwarding process running.
 
 ### Available controls
 
@@ -61,6 +64,15 @@ Macotron never kills the shared adb server or unrelated scrcpy processes.
 
 ADB is Android debugging-shell access, **not root**. Custom NAT/firewall rules, the existing
 `/dev/uinput` backend, and raw/LUKS disk controls remain root-only.
+
+### Server tab
+
+The **Server** tab combines the Wireless ADB status/controls with the existing Termux server
+page over SSH. Battery, Tailscale, screen settings and scrcpy remain usable through ADB even
+when the SSH page is loading or unavailable. The same ADB form is available in **Control**;
+switching tabs preserves entered addresses and pairing fields without duplicating controls.
+The SSH page retains its own root requirements; ADB does not grant Samba/disk administration,
+custom NAT or root-only power profiles. Select the companion profile in Server as before.
 
 Official Tailscale intent reference:
 [Android manifest](https://github.com/tailscale/tailscale-android/blob/main/android/src/main/AndroidManifest.xml).
@@ -122,3 +134,16 @@ python3 -m pytest -q
 Tests use temporary state and fake ADB/process responses; no phone, proxy, real HOME or real
 credentials are touched. Real pairing, OEM permissions, installed Tailscale behavior and
 scrcpy streaming require a live phone check.
+
+### Reliability safeguards
+
+ADB status reads use a separate cached-state lock so slow phone diagnostics do not block the
+status API. Jobs that fail to start report an error instead of leaving a permanently running
+entry; trimming history keeps active jobs. Failed tunnel stops and unmounts return a nonzero
+exit status, and invalid request bodies and device boolean options are rejected explicitly.
+
+The rooted SD-buffer mover keeps source files when destination directory flushing fails or
+when source identity/size/timestamps change during a copy. It also flushes an existing verified
+copy before removing a duplicate source on retry. These are checked against temporary files;
+they do not replace hardware testing or the existing requirement that a file be settled and
+not in use.

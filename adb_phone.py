@@ -77,6 +77,7 @@ class PhoneADB:
         self.path = os.path.join(state_dir, "adb.json")
         self.state_dir, self.active_device, self.log = state_dir, active_device, log
         self.lock = threading.RLock()
+        self.state_lock = threading.Lock()   # cached HTTP snapshots never wait for phone commands
         self.wake = threading.Event()
         self.stop = threading.Event()
         self.scrcpy = None
@@ -106,7 +107,12 @@ class PhoneADB:
         finally:
             if os.path.exists(tmp):
                 os.remove(tmp)
-        self.profiles = profiles
+        with self.state_lock:
+            self.profiles = profiles
+
+    def publish(self, name, state):
+        with self.state_lock:
+            self.cache[name] = state
 
     def run(self, args, serial=None, input_text=None, timeout=10):
         adb = shutil.which("adb")
@@ -148,7 +154,7 @@ class PhoneADB:
         return serial
 
     def snapshot(self):
-        with self.lock:
+        with self.state_lock:
             name, dev = self.active_device()
             cfg = self.profiles.get(name, {})
             state = dict(self.cache.get(name, {"connected": False, "message": "Waiting for the first status check." if cfg.get("on") else "ADB monitoring is off."}))
@@ -166,7 +172,7 @@ class PhoneADB:
             name, _ = self.active_device()
             cfg = self.profiles.get(name)
             if not cfg or not cfg["on"]:
-                self.cache[name] = {"connected": False, "message": "ADB monitoring is off.", "checked": time.time()}
+                self.publish(name, {"connected": False, "message": "ADB monitoring is off.", "checked": time.time()})
                 return
             state = {"connected": False, "checked": time.time(), "errors": {}, "capabilities": {}}
             try:
@@ -177,13 +183,13 @@ class PhoneADB:
                     self.run(["connect", cfg["endpoint"]])
                 except ValueError as e:
                     state["message"] = str(e)
-                    self.cache[name] = state
+                    self.publish(name, state)
                     return
             try:
                 serial = self.require_phone(name)
             except ValueError as e:
                 state["message"] = str(e)
-                self.cache[name] = state
+                self.publish(name, state)
                 return
             state.update(connected=True, message="Connected; phone status checked every 15 s.")
 
@@ -219,7 +225,7 @@ class PhoneADB:
                                                 "component": activity or receiver} if activity or receiver else None
             brightness = query("brightness", "settings", "get", "system", "screen_brightness")
             state["brightness"] = int(brightness) if brightness and brightness.isdigit() else None
-            self.cache[name] = state
+            self.publish(name, state)
 
     def operation(self, body):
         if not isinstance(body, dict):
@@ -246,7 +252,8 @@ class PhoneADB:
                 if previous and previous["serial"] != identity and body.get("replace") is not True:
                     return {"ok": False, "replace_required": True, "message": "This is a different phone. Replace the device pinned to this profile?"}
                 self.save(dict(self.profiles, **{name: {"on": True, "endpoint": addr, "serial": identity}}))
-                self.cache.pop(name, None)
+                with self.state_lock:
+                    self.cache.pop(name, None)
                 self.wake.set()
                 self.log("ADB connected for companion profile " + name)
                 return {"ok": True, "message": "Connected. Checking phone status."}
@@ -257,7 +264,8 @@ class PhoneADB:
                     if op == "disconnect":
                         self.close_scrcpy(name)
                         self.run(["disconnect", cfg["endpoint"]])
-                self.cache.pop(name, None)
+                with self.state_lock:
+                    self.cache.pop(name, None)
                 return {"ok": True, "message": "ADB monitoring off."}
             if op == "refresh":
                 self.refresh()
@@ -273,9 +281,10 @@ class PhoneADB:
                 if self.scrcpy and self.scrcpy.poll() is None:
                     raise ValueError("A scrcpy window is already open. Close it before opening another.")
                 with open(os.path.join(self.state_dir, "scrcpy.log"), "w") as log:
-                    self.scrcpy = subprocess.Popen([executable, "--serial", serial, "--window-title", "Macotron phone"],
-                                                   stdin=subprocess.DEVNULL, stdout=log, stderr=log, start_new_session=True)
-                self.scrcpy_device = name
+                    process = subprocess.Popen([executable, "--serial", serial, "--window-title", "Macotron phone"],
+                                               stdin=subprocess.DEVNULL, stdout=log, stderr=log, start_new_session=True)
+                with self.state_lock:
+                    self.scrcpy, self.scrcpy_device = process, name
                 try:
                     rc = self.scrcpy.wait(timeout=1)
                 except subprocess.TimeoutExpired:
@@ -331,7 +340,7 @@ class PhoneADB:
                     self.log("ADB status check failed: %s" % e)
                     with self.lock:
                         name, _ = self.active_device()
-                        self.cache[name] = {"connected": False, "checked": time.time(), "message": str(e)}
+                        self.publish(name, {"connected": False, "checked": time.time(), "message": str(e)})
                 self.wake.wait(TICK)
                 self.wake.clear()
         threading.Thread(target=loop, daemon=True, name="phone-adb").start()
